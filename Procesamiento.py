@@ -53,7 +53,7 @@ def test_oracle_connection():
     #oracledb.init_oracle_client(lib_dir=r"C:\instantclient_12_2") 
     """Establece la conexión con Oracle."""   
     try:
-        oracledb.init_oracle_client(lib_dir=r"C:\instantclient_12_2") 
+        #oracledb.init_oracle_client(lib_dir=r"C:\instantclient_12_2") 
         dsn = f"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={config('HOST')})(PORT={config('PORT')}))(CONNECT_DATA=(SID={config('SID')})))"
         connection = oracledb.connect(user=config("USER"), password=config("PASS"), dsn=dsn)
         print("✅ Conexión exitosa a la base de datos.")
@@ -88,7 +88,7 @@ WHERE CO.COR_FECH = TO_DATE(:fecha_aut_param, 'DD/MM/YYYY')
     AND   CX.CXP_SALD > 0    
     AND   CX.COR_CONT > 0
     AND   CX.CXP_ESTA = 'B'
-    AND   CX.GEA_CONT IS NULL;
+    AND   CX.GEA_CONT IS NULL
    
 '''
     #  AND   CX.GEA_CONT IS NULL
@@ -131,17 +131,17 @@ def insert_gearp_data(fecha_pago_param, fecha_aut_param, top_codi_param_str):
             top_codi_list = [int(x) for x in top_codi_param_str.split(",")]
             top_codi_placeholders = ', '.join([':top_codi' + str(i) for i in range(len(top_codi_list))])
             insert_gearp =  f"""
-                INSERT INTO TS_GEARP_PLANO_2025
+                INSERT INTO TS_GEARP
                 SELECT  'A' AS AUD_ESTA,
                         'ADMINSEVEN1' AS AUD_USUA,
                         SYSDATE AS AUD_UFAC,
                         40 AS EMP_CODI,
-                        ROWNUM + (SELECT NVL(MAX(GEA_CONT), 0) FROM TS_GEARP_PLANOS) AS GEA_CONT,
+                        ROWNUM + (SELECT NVL(MAX(GEA_CONT), 0) FROM TS_GEARP) AS GEA_CONT,
                         888 AS BAN_CODI,
                         1 AS SUB_CODI,
                         '111005010201' AS CUB_NUME,
                         SYSDATE AS GEA_FECH,       
-                        'AP:'||(ROWNUM + (SELECT NVL(MAX(GEA_CONT), 0) FROM TS_GEARP_PLANO_2025))||
+                        'AP:'||(ROWNUM + (SELECT NVL(MAX(GEA_CONT), 0) FROM TS_GEARP))||
                         ' - GIRO REG CONTRIBUTIVO '||TRIM(TO_CHAR(COR_FECH, 'MONTH'))||' '||
                         TO_CHAR(COR_FECH, 'YYYY')||', PROCESO:'||TO_CHAR(COR_FECH, 'YYYYMMDD')||', '||
                         DEPARTAMENTO||' TO.'||TOP_CODI AS GEA_DESC,
@@ -150,7 +150,7 @@ def insert_gearp_data(fecha_pago_param, fecha_aut_param, top_codi_param_str):
                         1 AS MON_CODI,
                         TO_DATE(:fecha_pago_param, 'DD/MM/YYYY') AS GEA_FETA, 
                         1 AS GEA_VATA,
-                        'C:\\PLANOS_TESORERIA\\40_'||(ROWNUM + (SELECT NVL(MAX(GEA_CONT), 0) FROM TS_GEARP_PLANO_2025))||'_RS_GIRODIR_TXT' AS GEA_ARCH,
+                        'C:\\PLANOS_TESORERIA\\40_'||(ROWNUM + (SELECT NVL(MAX(GEA_CONT), 0) FROM TS_GEARP))||'_RS_GIRODIR_TXT' AS GEA_ARCH,
                         'N' AS GEA_CORR,
                         0 AS TER_CODI
                 FROM 
@@ -170,7 +170,7 @@ def insert_gearp_data(fecha_pago_param, fecha_aut_param, top_codi_param_str):
                     AND   CX.CXP_SALD > 0    
                     AND   CX.COR_CONT > 0
                     AND   CX.CXP_ESTA = 'B'
-                    AND   CX.GEA_CONT IS NULL;
+                    AND   CX.GEA_CONT IS NULL
                    
                     
                     GROUP BY CO.TOP_CODI, CO.COR_FECH, BI.DEPARTAMENTO
@@ -217,7 +217,7 @@ def update_gea_cont(fecha_aut_param, top_codi_param_str):
             top_codi_list = [int(x) for x in top_codi_param_str.split(",")]
             top_codi_placeholders = ', '.join([':top_codi' + str(i) for i in range(len(top_codi_list))])
             update_gea_cont = f'''
-                MERGE INTO PO_CXPAG_PLANOS CX
+                MERGE INTO PO_CXPAG CX
                 USING
                 (
                     SELECT FA.CXP_CONT,
@@ -248,12 +248,12 @@ def update_gea_cont(fecha_aut_param, top_codi_param_str):
                             AND   CX.CXP_SALD > 0    
                             AND   CX.COR_CONT > 0
                             AND   CX.CXP_ESTA = 'B'
-                            AND   CX.GEA_CONT IS NULL;
+                            AND   CX.GEA_CONT IS NULL
                             
                             
                         ) 
                     ) FA
-                    INNER JOIN TS_GEARP_PLANO_2025 GE ON FA.DESCRIPCION_PLANO = REGEXP_SUBSTR (GE.GEA_DESC, 'G[^-]*')
+                    INNER JOIN TS_GEARP GE ON FA.DESCRIPCION_PLANO = REGEXP_SUBSTR (GE.GEA_DESC, 'G[^-]*')
                 ) TMP 
                 ON (CX.CXP_CONT = TMP.CXP_CONT)
                 WHEN MATCHED THEN 
@@ -300,8 +300,8 @@ def export_plano(fecha_pago_param):
                     ,GE.GEA_DESC AS DESCRIPCION_PLANO
                     ,COUNT(*) AS CANTIDAD_DE_REGISTROS
                     ,SUM(CX.CXP_SALD) AS VALOR_AUTORIZADO
-                FROM PO_CXPAG_PLANOS CX
-                INNER JOIN TS_GEARP_PLANO_2025 GE ON CX.GEA_CONT = GE.GEA_CONT
+                FROM PO_CXPAG CX
+                INNER JOIN TS_GEARP GE ON CX.GEA_CONT = GE.GEA_CONT
                 WHERE CX.CXP_ESTA = 'B'
                 AND GEA_FETA = TO_DATE(:fecha_pago_param, 'DD/MM/YYYY')
                 AND   CX.GEA_CONT IS NOT NULL
@@ -313,7 +313,7 @@ def export_plano(fecha_pago_param):
             df = pd.read_sql(query_export, connection , params = ({'fecha_pago_param': fecha_pago_param}))
             #connection.close()      
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_file = f"resultado_de_consulta_{timestamp}.xlsx"
+            output_file = f"Plano_contributivo_{timestamp}.xlsx"
             df.to_excel(output_file, index=False)
         
             return output_file, None

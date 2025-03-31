@@ -9,3 +9,8 @@ venv/
 
 # Ignorar caché de Python
 __pycache__/
+
+app_pa.py
+
+app.py
+
